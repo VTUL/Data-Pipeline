@@ -1,0 +1,13 @@
+# backup files
+
+*#*#
+*.swp
+~*
+
+# compiled files
+
+*.pyc
+
+# password files
+
+*labrynth*
