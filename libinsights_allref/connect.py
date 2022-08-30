@@ -10,13 +10,19 @@ from requests.auth import HTTPBasicAuth
 
 #import friendly
 
-if __name__=='__main__':
-
-    from labrynth import client_id, client_secret, token_url
+def con():
+    from libinsights_allref.labrynth import client_id, client_secret, token_url
 
     auth = HTTPBasicAuth(client_id, client_secret)
     client = BackendApplicationClient(client_id=client_id)
     oauth = OAuth2Session(client=client)
     token = oauth.fetch_token(token_url=token_url, auth=auth)
 
+    return {
+        'statusCode': 200,
+        'body': json.dumps(token)
+    }
     print(1, token)
+
+if __name__=='__main__':
+    con()
