@@ -11,12 +11,14 @@ from requests.auth import HTTPBasicAuth
 #import friendly
 
 def con():
-    from libinsights_allref.labrynth import client_id, client_secret, token_url
+    from enigma import get as eng 
+    cid = eng('client_id')
 
-    auth = HTTPBasicAuth(client_id, client_secret)
-    client = BackendApplicationClient(client_id=client_id)
+    auth = HTTPBasicAuth(cid, eng('client_secret'))
+    client = BackendApplicationClient(client_id=cid)
     oauth = OAuth2Session(client=client)
-    token = oauth.fetch_token(token_url=token_url, auth=auth)
+    token = oauth.fetch_token(token_url=eng('token_url'),
+                              auth=auth)
 
     return {
         'statusCode': 200,
