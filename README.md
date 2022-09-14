@@ -12,7 +12,7 @@ This project is hosted in the [Data Services AWS account](https://260377936955.s
 - Unit : AnalyticsAssessment
 - Owner : DataServices
 - Stack : Prod
-- User : jjt
+- User : rever0f
 - Application : DataPipeline
 
 
