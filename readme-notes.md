@@ -12,9 +12,13 @@
     cd 
     mkvirtualenv en-chant
     pip install -r requirements.txt
-    #setup labrynth from template
+    #setup labrynth from template for local
     cp labtemp.py labrynth.py
     vi labrynth.py
+    # set up environment variables from labtemp
+    # in lambda function>configuration>environment
+    # variables add a DP_ENV[test/dev/live] variable
+    # as well
     # deploy
     ./package.sh
     # upload deploymentpackage.zip to lamda function
