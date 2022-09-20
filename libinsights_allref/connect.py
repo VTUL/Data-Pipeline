@@ -29,16 +29,22 @@ def con():
     }
 
 def gdata(token):
-    grid = eng('grid_url') + '?'
-    prms = ['request_id=16', 'from=2022-09-01',
-            'to=2022-09-30', 'entered_by=all',
-            'show_notes=false', 'show_ip=false',
-            'show_source=false', 'sort=asc', 'page=1']
-    for _v in prms:
-        grid = grid + _v + '&'
-    headers = {'Authorization': '{key}'.format(key=token)}
-    ret = requests.get(grid,headers=headers).json()
+    grid = eng('grid_url')
+    prms = {'request_id': '16', 'from': '2022-09-01',
+            'to': '2022-09-01', 'entered_by': 'all',
+            'show_notes': 'false', 'show_ip': 'false',
+            'show_source': 'false', 'sort': 'asc',
+            'page': '1'}
+    # headers = {'Authorization': token['access_token']}
+    headers = {'Authorization': token['token_type'] \
+               + ' ' + token['access_token'],
+               'Accept': 'application/json'}
+    ret = requests \
+        .get(grid, params=prms, headers=headers) \
+        .json()
+    # ret = requests.get(grid,headers=headers).json()
 
+    # print(1, ret.status_code, ret.text, dir(ret.request), ret.request.url, ret.request.headers)
     return {
         'statusCode': 200,
         'body': json.dumps(ret)
