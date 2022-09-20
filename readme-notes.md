@@ -8,8 +8,8 @@
        git@code.vt.edu:dataservices/data-pipeline.git \
        [dest]   \
        --config core.sshCommand="ssh -i
-            ~/.ssh/<private-key>" 
-    cd 
+            ~/.ssh/<private-key>"
+    cd
     mkvirtualenv en-chant
     pip install -r requirements.txt
     #setup labrynth from template for local
@@ -32,3 +32,17 @@
     curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
     unzip awscliv2.zip
     sudo ./aws/install
+    # get access key
+    aws cofigure
+    # access key
+    # secret access key
+    # region us-east-1
+    # format json
+    aws lambda update-function-code --function-name doom-aleph --zip-file fileb:///home/inks/zarcane/ec-tide/deploymentpackage.zip
+
+- lambda
+  - create-function
+  - update-function-code
+    - --function-name <value>
+    - [--zip-file <value>]
+  - get-function-configuration
