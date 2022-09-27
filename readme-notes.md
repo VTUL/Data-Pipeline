@@ -10,7 +10,7 @@
        --config core.sshCommand="ssh -i
             ~/.ssh/<private-key>"
     cd
-    mkvirtualenv en-chant
+    mkvirtualenv <project-name>
     pip install -r requirements.txt
     #setup labrynth from template for local
     cp labtemp.py labrynth.py
@@ -46,3 +46,10 @@
     - --function-name <value>
     - [--zip-file <value>]
   - get-function-configuration
+  - update-function-configuration
+    - --function-name <value>
+    - --environment
+      - Variables={KeyName1=string,KeyName2=string}
+  - invoke
+    - --function-name doom-aleph
+    - <file> ../ec-tide/brave-inv

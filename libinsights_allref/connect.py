@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # local
-import os,sys,json,re
-from os import system
+import json
 
 # foreign
 import requests
