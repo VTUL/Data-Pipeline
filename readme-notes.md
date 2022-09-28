@@ -53,3 +53,5 @@
   - invoke
     - --function-name doom-aleph
     - <file> ../ec-tide/brave-inv
+    - aws lambda invoke --function-name doom-aleph \
+          ../ec-tide/brave-inv.json

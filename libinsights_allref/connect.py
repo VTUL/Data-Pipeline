@@ -39,14 +39,24 @@ def gdata(token):
                + ' ' + token['access_token'],
                'Accept': 'application/json'}
     ret = requests \
-        .get(grid, params=prms, headers=headers) \
-        .json()
+        .get(grid, params=prms, headers=headers)
+    if ret.status_code != 200:
+        return {
+        'statusCode': 200,
+        'body': grid + " - " \
+            + str(ret.status_code) + " - " \
+            + ret.reason
+        }
+    ret = ret.json()
+
     # ret = requests.get(grid,headers=headers).json()
 
     # print(1, ret.status_code, ret.text, dir(ret.request), ret.request.url, ret.request.headers)
+    # ret = ret.json()
+    print(1, dir(ret), ret.status_code, ret.reason)
     return {
         'statusCode': 200,
-        'body': json.dumps(ret)
+        'body': ret
     }
 
 
