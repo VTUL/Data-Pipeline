@@ -19,11 +19,11 @@ def first(rec, key):
 
 
 def lowscore(astr, prefix='_'):
-    return '_%s' % prefix.join(astr.lower().split())
+    return '%s%s' % (prefix,
+                     '_'.join(astr.lower().split()))
 
 def maplowscore(rec, key):
-    rec[key] = rec[lowscore(key)]
-    return rec
+    return {**rec, key :rec[lowscore(key)]}
 
 
 def fmtrecords(recs):
