@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # local
 import json
+from datetime import date, timedelta
 from csv import DictWriter as cwr
 
 # foreign
@@ -23,7 +24,7 @@ def lowscore(astr, prefix='_'):
                      '_'.join(astr.lower().split()))
 
 def maplowscore(rec, key):
-    return {**rec, key :rec[lowscore(key)]}
+    return rec | {key: rec[lowscore(key)]}
 
 
 def fmtrecords(recs):
@@ -42,8 +43,15 @@ def mkcsv(vals):
             'answeredBy', 'classroom', 'walkins',
             'employee', 'studio', 'Start date']
     recs = fmtrecords(vals['payload']['records'])
-    print(2, recs[0])
 
+    if len(recs) == 0:
+        print(5, vals)
+        return {
+            'statusCode': 200,
+            'body': 'empty set'
+        }
+
+    print(2, recs[0])
     acs = open('../ec-tide/brave.csv', 'w')
     acw = cwr(acs, flds, extrasaction='ignore')
 
@@ -69,13 +77,29 @@ def err_stat(grid, ret):
     # from libinsights_allref.temp import da_ret
     # return mkcsv(da_ret)
 
+def wkpast(adate, daysPast):
+    return adate - \
+        timedelta(days=adate.weekday() + daysPast)
+
+def wksun(adate):
+    #todo: investigate start week on sunday?
+    return wkpast(adate, 8)
+
+def wksat(adate):
+    #todo: investigate start week on sunday?
+    return wkpast(adate, 2)
+
+
+def fromto(adate=date.today()):
+    return {'from': wksun(adate),'to': wksat(adate)}
+
 def gdata(token):
     grid = eng('grid_url')
-    prms = {'request_id': '16', 'from': '2022-09-01',
-            'to': '2022-09-03', 'entered_by': 'all',
+    prms = {'request_id': '16', **fromto(),
+            'entered_by': 'all',
             'show_notes': 'false', 'show_ip': 'false',
             'show_source': 'false', 'sort': 'asc',
-            'page': '2'}
+            'page': '1'}
     headers = {'Authorization': token['token_type'] \
                + ' ' + token['access_token'],
                'Accept': 'application/json'}
