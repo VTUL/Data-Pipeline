@@ -12,8 +12,9 @@
 
 *labrynth*
 
-# venv
+# environment files
 env
+.idea
 
 # Lambda package file
 deploymentpackage.zip
