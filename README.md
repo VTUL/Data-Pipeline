@@ -19,3 +19,4 @@ This project is hosted in the [Data Services AWS account](https://260377936955.s
 
 ## Getting started
 
+For installation documentation see [readme-notes.md](https://code.vt.edu/dataservices/data-pipeline/-/blob/main/readme-notes.md).
