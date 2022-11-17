@@ -11,3 +11,10 @@
 # password files
 
 *labrynth*
+
+# environment files
+env
+.idea
+
+# Lambda package file
+deploymentpackage.zip
