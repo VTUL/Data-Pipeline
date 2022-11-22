@@ -9,9 +9,10 @@ import requests
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 from requests.auth import HTTPBasicAuth
-from enigma import get as eng
+import boto3
 
 #import friendly
+from enigma import get as eng
 
 
 def first(rec, key):
@@ -29,7 +30,8 @@ def maplowscore(rec, key):
 
 def fmtrecords(recs):
     fmts = {'Question Type': first,
-            'Start date': maplowscore}
+            'Start date': maplowscore,
+            'id': maplowscore}
 
     for k, _v in enumerate(recs):
         for _ak, _av in fmts.items(): recs[k]=_av(_v, _ak)
@@ -38,10 +40,11 @@ def fmtrecords(recs):
 
 
 def mkcsv(vals):
-    flds = ['Question Type', 'Duration (in minutes)',
-            'Comments/Notes', 'Location', 'who', 'mode',
-            'answeredBy', 'classroom', 'walkins',
-            'employee', 'studio', 'Start date']
+    flds = ['id', 'Question Type',
+            'Duration (in minutes)', 'Comments/Notes',
+            'Location', 'who', 'mode', 'answeredBy',
+            'classroom', 'walkins', 'employee', 'studio',
+            'Start date']
     recs = fmtrecords(vals['payload']['records'])
 
     if len(recs) == 0:
@@ -52,7 +55,7 @@ def mkcsv(vals):
         }
 
     print(2, recs[0])
-    acs = open('../ec-tide/brave.csv', 'w')
+    acs = open('/tmp/brave.csv', 'w')
     acw = cwr(acs, flds, extrasaction='ignore')
 
     acw.writeheader()
