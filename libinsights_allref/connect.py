@@ -5,11 +5,10 @@ from datetime import date, timedelta
 from csv import DictWriter as cwr
 
 # foreign
-import requests
+import requests, boto3
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
 from requests.auth import HTTPBasicAuth
-import boto3
 
 #import friendly
 from enigma import get as eng
@@ -47,7 +46,7 @@ def mkcsv(vals):
             'Start date']
     recs = fmtrecords(vals['payload']['records'])
     fnam = '/tmp/brave.csv'
-    s3 = boto3.resource('s3')
+    s3 = boto3.client('s3')
 
     if len(recs) == 0:
         print(5, vals)
@@ -65,10 +64,9 @@ def mkcsv(vals):
         acw.writerow(_v)
     acs.close()
 
-    s3.meta.client \
-           .upload_file(Filename=fnam,
-                        Bucket='analytics-datapipeline',
-                        Key=fnam)
+    s3.upload_file(Filename=fnam,
+                   Bucket='analytics-datapipeline',
+                   Key=fnam)
 
     return {
         'statusCode': 200,
