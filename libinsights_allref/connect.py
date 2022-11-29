@@ -45,7 +45,8 @@ def mkcsv(vals):
             'classroom', 'walkins', 'employee', 'studio',
             'Start date']
     recs = fmtrecords(vals['payload']['records'])
-    fnam = '/tmp/brave.csv'
+    fnam = 'brave.csv'
+    fpth = '/tmp/'+fnam
     s3 = boto3.client('s3')
 
     if len(recs) == 0:
@@ -56,7 +57,7 @@ def mkcsv(vals):
         }
 
     print(2, recs[0])
-    acs = open(fnam, 'w')
+    acs = open(fpth, 'w')
     acw = cwr(acs, flds, extrasaction='ignore')
 
     acw.writeheader()
@@ -64,9 +65,9 @@ def mkcsv(vals):
         acw.writerow(_v)
     acs.close()
 
-    s3.upload_file(Filename=fnam,
+    s3.upload_file(Filename=fpth,
                    Bucket='analytics-datapipeline',
-                   Key=fnam)
+                   Key=fpth)
 
     return {
         'statusCode': 200,
