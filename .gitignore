@@ -18,3 +18,8 @@ env
 
 # Lambda package file
 deploymentpackage.zip
+
+# Config
+envVar.py
+
+dependencyPackage*
