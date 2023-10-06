@@ -11,6 +11,7 @@ from requests.auth import HTTPBasicAuth
 import os
 
 def lambda_handler(event, context):
+    #Following are the events for Lambda
     #libID="28364"
     #requestID="16"
     #fromDate="2023-08-30"
@@ -25,7 +26,7 @@ def lambda_handler(event, context):
        'body':json.dumps('Excel file created')
     }
 
-#-----------------PART 1: get variables from aws configurations:
+#-----------------PART 1:a. get variables from aws configurations:
 
 def getLibCreds():
     from os import environ
@@ -37,11 +38,8 @@ def getLibCreds():
     LibInsightGridURL=os.environ.get("LibInsightGridURL")
     LibCreds=[LibInsightClientID,LibInsightClientSecret,LibInsightHostName,LibInsightTokenURL,LibInsightGridURL]
     return LibCreds
-#---------------Get libInsight Token:
-#libCreds=getLibCreds()
-#print(libCreds)
-#libcred=getLibCreds()
-#print(libcred)
+#---------------PART 1:b. Get libInsight Token:
+
 def getToken(libCreds):
   config=configparser.ConfigParser()
   config.read('configurations.ini')
@@ -59,11 +57,7 @@ def getToken(libCreds):
 #-----------------------PART 2: Make a query:
 def LibInQuery(libToken,libID,requestID,fromDate,toDate):
   url = 'https://vt.libinsight.com/v1.0/custom-dataset/'+libID+'/data-grid?request_id='+requestID+'&from='+fromDate+'&to='+toDate
-  #url = "https://vt.libinsight.com/v1.0/custom-dataset/28364/data-grid?request_id=16&from=2023-08-30&to=023-08-31" #YYYY-MM-DD
 
-  #from getLibInsightToken import getToken
-  #LibInsightToken=getToken()
-  #print(LibInsightToken['access_token'],"here")
   payload = {}
 
   headers = {
@@ -78,44 +72,36 @@ def modifyLibQueryRes(libRes):
 #get query data as a string
 
   response=libRes
-#quit()
-#print("TYPE",type(response.json))
-#print(response.text)
   jsonDict=response.json()#return json as a dictionary
-#------------------------------------
-  jsonResString=response.text
-
+  jsonResString=response.text#return json as a string
+  #Delete the following parameters from the json dictionary
   DeletionList=["_entered_by","who","answeredBy","classroom","topic","walkins","employee","studio","affiliation"]
 
   for i in range(len(jsonDict["payload"]["records"])):
     for j in range(len(DeletionList)):
-    #if(jsonDict["payload"]["records"][i] == DeletionList):
       del jsonDict["payload"]["records"][i][DeletionList[j]]
-    #break
-#print("HERE IS DELETED LIST",jsonDicts) 
-# Cleaned json lib insight query 
+
+# Cleaned json lib insight query after deletion of the above parameters
   jsonDictClean=jsonDict["payload"]["records"]
   return jsonDictClean
 
-#----------------------------PART 4: Convert to dataframe and excel sheet, upload to s3
+#----------------------------PART 4: Convert the clean dictionary to a dataframe and store it in excel sheet
 def libInExcelToS3(jsonDictClean):
   jsonDframe=pd.DataFrame(jsonDictClean)
   df_just_models = jsonDframe#pd.DataFrame(just_models)
   mem_file = io.BytesIO();
   df_just_models.to_excel(mem_file, engine='xlsxwriter',index=False)
   
-#-------------------------PART5: Upload to s3:
+#-------------------------PART5: Upload excel sheet to s3:
   s3 = boto3.client('s3')
   buckets = s3.list_buckets()
   for bucket in buckets['Buckets']:
     print(bucket['CreationDate'].ctime(), bucket['Name'])
-#convert dictionary to json string
-#jsonString=json.dumps(jsonDict,indent=2,default=str)
 #Upload json string to an s3 object: 
   s3.put_object(Bucket='lib-insight-serialized-data',Key='testQueryData3.xls',Body=mem_file.getvalue())
   return mem_file.getvalue()
 
-#--------------independent of lambda run
+#--------------Test run 
 libID="28364"
 requestID="16"
 fromDate="2023-08-30"

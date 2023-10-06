@@ -18,7 +18,7 @@ env
 
 # Lambda package file
 deploymentpackage.zip
-
+awscliv2.zip
 # Config
 envVar.py
 
