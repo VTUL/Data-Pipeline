@@ -14,7 +14,6 @@ export LibInsightTokenURL=
 
 #def env()
 #https://stackoverflow.com/questions/5971312/how-to-set-environment-variables-in-python
-#  os.environ["LibInsightClientID"]="64e4d3020a480"
 #  libID=os.environ.get('LibInsightClientID')
 #return libID
 #print(libID)
