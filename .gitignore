@@ -23,4 +23,4 @@ awscliv2.zip
 envVar.py
 setEnvironVariables-local.sh
 dependencyPackage*
-libInsight_venv*
+libInsight_venv/
