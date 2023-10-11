@@ -17,11 +17,14 @@ def lambda_handler(event, context):
   #  libID="28410"
     #libID="3224"
     requestID="16"
-    fromDate="2023-08-01"
-    toDate="023-08-31" 
+    fromDate="2023-05-03"
+    toDate="023-05-09" 
     libCreds=getLibCreds()
     libToken=getToken(libCreds)
+    print('token is ',libToken)
+    print('libCreds are ',libCreds)
     libRes=LibInQuery(libToken,libID,requestID,fromDate,toDate)
+    print('libRes is ',libRes)
     cleanLibInData=modifyLibQueryRes(libRes)
     LibExcelFile=libInExcelToS3(cleanLibInData)
     return {
@@ -33,14 +36,14 @@ def lambda_handler(event, context):
 
 def getLibCreds():
     LibInsightClientID=os.environ.get("LibInsightClientID")
-    print("TYPE IS ",type(LibInsightClientID), " VALUE IS ", LibInsightClientID)
+#    print("TYPE IS ",type(LibInsightClientID), " VALUE IS ", LibInsightClientID)
     LibInsightClientSecret=os.environ.get("LibInsightClientSecret")
     LibInsightHostName=os.environ.get("LibInsightHostName")
     LibInsightTokenURL=os.environ.get("LibInsightTokenURL")
     LibInsightGridURL=os.environ.get("LibInsightGridURL")
-    LibCreds=[LibInsightClientID,LibInsightClientSecret,LibInsightHostName,LibInsightTokenURL,LibInsightGridURL]
-    print(LibCreds)
-    return LibCreds
+    libCreds=[LibInsightClientID,LibInsightClientSecret,LibInsightHostName,LibInsightTokenURL,LibInsightGridURL]
+    #print(LibCreds)
+    return libCreds
 
 
 #---------------PART 1:b. Get libInsight Token:
@@ -53,8 +56,8 @@ def getToken(libCreds):
   auth = HTTPBasicAuth(LibInsightClientID, LibInsightClientSecret)
   client = BackendApplicationClient(client_id=LibInsightClientID)
   oauth = OAuth2Session(client=client)
-  token = oauth.fetch_token(token_url=LibInsightTokenURL,auth=auth)
-  return token
+  libToken = oauth.fetch_token(token_url=LibInsightTokenURL,auth=auth)
+  return libToken
 
 #-----------------------PART 2: Make a query:
 def LibInQuery(libToken,libID,requestID,fromDate,toDate):
@@ -76,14 +79,17 @@ def modifyLibQueryRes(libRes):
 
   response=libRes
   jsonDict=response.json()#return json as a dictionary
+  print(type(jsonDict))
+
+  #quit()
   jsonResString=response.text#return json as a string
-  print(jsonResString)
+  #print(jsonResString)
   #type(jsonResString)
   #quit()
   #Delete the following parameters from the json dictionary
 #  DeletionList=["_entered_by","who","answeredBy","classroom","walkins","employee","studio","affiliation","scans","reformat"]
   DeletionList=["_entered_by","walkins","scans","reformat"]
-  
+  print(jsonDict)
   for i in range(len(jsonDict["payload"]["records"])):
     for j in range(len(DeletionList)):
       del jsonDict["payload"]["records"][i][DeletionList[j]]
@@ -94,7 +100,13 @@ def modifyLibQueryRes(libRes):
 
 #----------------------------PART 4: Convert the clean dictionary to a dataframe and store it in excel sheet
 def libInExcelToS3(jsonDictClean):
-  jsonDframe=pd.DataFrame(jsonDictClean)
+  jsonDframeOriginal=pd.DataFrame(jsonDictClean)
+  df=jsonDframeOriginal
+  df['ResearchAndTopic'] = [''.join(i) for i in zip(df['research'], df['topic'])]
+  df=df.drop(columns=['research','topic'])
+  #jsonDframe=jsonDframeOriginal.research.str.cat(jsonDframeOriginal.topic)
+  #jsonDframe[['research', 'topic']].agg('_'.join, axis=1)
+  jsonDframe=df
   df_just_models = jsonDframe#pd.DataFrame(just_models)
   mem_file = io.BytesIO()
   #writer=pd.ExcelWriter(mem_file,engine='xlsxwriter')

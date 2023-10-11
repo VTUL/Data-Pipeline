@@ -21,6 +21,7 @@ deploymentpackage.zip
 awscliv2.zip
 # Config
 envVar.py
+troubleshoot.py
 setEnvironVariables-local.sh
 dependencyPackage*
 libInsight_venv/
