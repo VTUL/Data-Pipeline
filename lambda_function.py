@@ -121,13 +121,24 @@ def libInExcelToS3(jsonDictClean):
   mem_file = io.BytesIO()
   #writer=pd.ExcelWriter(mem_file,engine='xlsxwriter')
   
-  df_just_models.to_excel(mem_file, engine='xlsxwriter',index=False)
+  #df_just_models.to_excel(mem_file, engine='xlsxwriter',index=False)
+  df_just_models.to_csv(mem_file, encoding='utf-8',index=False)
+
   
 #-------------------------PART5: Upload excel sheet to s3:
 
   s3 = boto3.client('s3')
 #Upload json string to an s3 object: 
-  s3.put_object(Bucket='lib-insight-serialized-data',Key='testQueryData4.xls',Body=mem_file.getvalue())
+  #s3.put_object(Bucket='lib-insight-serialized-data',Key='testQueryData4.xls',Body=mem_file.getvalue())
+  #s3.put_object(Bucket='lib-insight-serialized-data-created-in-east1-connect-to-athena',Key='testQueryData4.xls',Body=mem_file.getvalue())
+  s3.put_object(Bucket='lib-insight-serialized-data-created-in-east1-connect-to-athena',Key='LibInsightQueryData.csv',Body=mem_file.getvalue())
+ # --------------------read the file put on s3
+  #s3.download_file('lib-insight-serialized-data-created-in-east1-connect-to-athena', 'lib-insight-serialized-data-created-in-east1-connect-to-athena/LibInsightQueryData.csv', 'local_file.csv')
+  obj=s3.get_object(Bucket='lib-insight-serialized-data-created-in-east1-connect-to-athena',Key='LibInsightQueryData.csv')
+  dfName = pd.read_csv(obj['Body'])#, nrows=14)
+  print(dfName.dtypes)
+  #for dtype in dfName.dtypes.iteritems():
+  #  print(dtype)
   return mem_file.getvalue()
 
 #--------------Test run 
