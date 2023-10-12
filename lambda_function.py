@@ -104,9 +104,14 @@ def libInExcelToS3(jsonDictClean):
   df=jsonDframeOriginal
   #print("TYPE OF DF ",type(df.loc[2,'Question Type']))
   #print("TYPE OF DF ",type(df.loc[df.index[0],'Question Type']))
+  #------remove brackets from question type 
   df['Question Type']=df['Question Type'].str.get(0)
+  #------change date format from y-m-d h-m-s to m/d/y h-m
+  df['_start_date']=pd.to_datetime(df['_start_date'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%m/%d/%y %H:%M')
   #print(df['Question Type'])
+  #print(df['_start_date'])
   #quit()
+  #------combine research and topic 
   df['ResearchAndTopic'] = [''.join(i) for i in zip(df['research'], df['topic'])]
   df=df.drop(columns=['research','topic'])
   #jsonDframe=jsonDframeOriginal.research.str.cat(jsonDframeOriginal.topic)
