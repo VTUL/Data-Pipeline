@@ -102,6 +102,11 @@ def modifyLibQueryRes(libRes):
 def libInExcelToS3(jsonDictClean):
   jsonDframeOriginal=pd.DataFrame(jsonDictClean)
   df=jsonDframeOriginal
+  #print("TYPE OF DF ",type(df.loc[2,'Question Type']))
+  #print("TYPE OF DF ",type(df.loc[df.index[0],'Question Type']))
+  df['Question Type']=df['Question Type'].str.get(0)
+  #print(df['Question Type'])
+  #quit()
   df['ResearchAndTopic'] = [''.join(i) for i in zip(df['research'], df['topic'])]
   df=df.drop(columns=['research','topic'])
   #jsonDframe=jsonDframeOriginal.research.str.cat(jsonDframeOriginal.topic)
