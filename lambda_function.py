@@ -10,6 +10,12 @@ from requests_oauthlib import OAuth2Session
 from requests.auth import HTTPBasicAuth
 import json
 import os
+from io import StringIO
+
+#import time
+#import csv
+#import athena_from_s3
+#import S3_cleanup
 
 def lambda_handler(event, context):
     #Following are the events for Lambda
@@ -21,10 +27,10 @@ def lambda_handler(event, context):
     toDate="023-05-09" 
     libCreds=getLibCreds()
     libToken=getToken(libCreds)
-    print('token is ',libToken)
-    print('libCreds are ',libCreds)
+    #print('token is ',libToken)
+    #print('libCreds are ',libCreds)
     libRes=LibInQuery(libToken,libID,requestID,fromDate,toDate)
-    print('libRes is ',libRes)
+    #print('libRes is ',libRes)
     cleanLibInData=modifyLibQueryRes(libRes)
     LibExcelFile=libInExcelToS3(cleanLibInData)
     return {
@@ -89,7 +95,7 @@ def modifyLibQueryRes(libRes):
   #Delete the following parameters from the json dictionary
 #  DeletionList=["_entered_by","who","answeredBy","classroom","walkins","employee","studio","affiliation","scans","reformat"]
   DeletionList=["_entered_by","walkins","scans","reformat"]
-  print(jsonDict)
+  #print(jsonDict)
   for i in range(len(jsonDict["payload"]["records"])):
     for j in range(len(DeletionList)):
       del jsonDict["payload"]["records"][i][DeletionList[j]]
@@ -102,8 +108,6 @@ def modifyLibQueryRes(libRes):
 def libInExcelToS3(jsonDictClean):
   jsonDframeOriginal=pd.DataFrame(jsonDictClean)
   df=jsonDframeOriginal
-  #print("TYPE OF DF ",type(df.loc[2,'Question Type']))
-  #print("TYPE OF DF ",type(df.loc[df.index[0],'Question Type']))
   #------remove brackets from question type 
   df['Question Type']=df['Question Type'].str.get(0)
   #------change date format from y-m-d h-m-s to m/d/y h-m
@@ -112,46 +116,120 @@ def libInExcelToS3(jsonDictClean):
   #print(df['_start_date'])
   #quit()
   #------combine research and topic 
-  df['ResearchAndTopic'] = [''.join(i) for i in zip(df['research'], df['topic'])]
+  df['Research_Topic'] = [''.join(i) for i in zip(df['research'], df['topic'])]
   df=df.drop(columns=['research','topic'])
-  #jsonDframe=jsonDframeOriginal.research.str.cat(jsonDframeOriginal.topic)
-  #jsonDframe[['research', 'topic']].agg('_'.join, axis=1)
   jsonDframe=df
   df_just_models = jsonDframe#pd.DataFrame(just_models)
   mem_file = io.BytesIO()
+  #----------to excel
   #writer=pd.ExcelWriter(mem_file,engine='xlsxwriter')
-  
+  #Write libinsight data to excel file
   #df_just_models.to_excel(mem_file, engine='xlsxwriter',index=False)
+  #Write libinsight data to csv file
+  #------to csv
   df_just_models.to_csv(mem_file, encoding='utf-8',index=False)
 
   
 #-------------------------PART5: Upload excel sheet to s3:
 
   s3 = boto3.client('s3')
+  #  s3 = boto3.client('s3')
+  buckets = s3.list_buckets()
+  #for bucket in buckets['Buckets']:
+  #  print(bucket['CreationDate'].ctime(), bucket['Name'])
 #Upload json string to an s3 object: 
-  #s3.put_object(Bucket='lib-insight-serialized-data',Key='testQueryData4.xls',Body=mem_file.getvalue())
-  #s3.put_object(Bucket='lib-insight-serialized-data-created-in-east1-connect-to-athena',Key='testQueryData4.xls',Body=mem_file.getvalue())
-  s3.put_object(Bucket='lib-insight-serialized-data-created-in-east1-connect-to-athena',Key='LibInsightQueryData.csv',Body=mem_file.getvalue())
- # --------------------read the file put on s3
-  #s3.download_file('lib-insight-serialized-data-created-in-east1-connect-to-athena', 'lib-insight-serialized-data-created-in-east1-connect-to-athena/LibInsightQueryData.csv', 'local_file.csv')
-  obj=s3.get_object(Bucket='lib-insight-serialized-data-created-in-east1-connect-to-athena',Key='LibInsightQueryData.csv')
-  dfName = pd.read_csv(obj['Body'])#, nrows=14)
-  print(dfName.dtypes)
-  #for dtype in dfName.dtypes.iteritems():
-  #  print(dtype)
+
+  #---------------------write libInsight data to excel file 
+  #s3.put_object(Bucket='lib-insight-serialized-data-created-in-east1-connect-to-athena',Key='LibInsightQueryData.xls',Body=mem_file.getvalue())
+  #---------------------write libInsight data to csv file
+  #s3.put_object
+  s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_file.getvalue())
+
   return mem_file.getvalue()
 
+#------------------------Access database created in athena:
+client = boto3.client("athena")
+
+DATABASE_NAME = "libinsightdata"
+RESULT_OUTPUT_LOCATION = "s3://learnaws-athena-tutorial/queries/"
+params = {
+    'region': 'us-east-1',
+    'database': 'libinsightdata',
+    'bucket': 'analytics-datapipeline',
+    'path': 'libinsightdata-athena',
+    'query': 'SELECT * FROM "AwsDataCatalog"."libinsightdatabase"."libinsightdata" limit 100;'
+}
+#def query_results(session,params):
+    #execute the query and return the query execution
+
+#---------------------------------------------start query execution 
+# #(https://hands-on.cloud/boto3-athena-python-tutorial/)
+def athena_query(client,params):
+  response_start = client.start_query_execution(
+        QueryString=params['query'],
+        QueryExecutionContext = {
+           'Database' : params['database']
+        },
+        #QueryString=f"create database {DATABASE_NAME}",
+        ResultConfiguration={"OutputLocation": 's3://'+params['bucket']+'/'+ params['path']
+        }
+    )
+  return response_start
+#test start query execution 
+response_start=athena_query(client,params)
+print(type(response_start))
+print(response_start)  
+print(response_start["QueryExecutionId"])  
+#print(response['QueryExecutionId'])
+#---------------------------------------------------------------------
+#-------------------------------------------------Get query execution and results
+
+session = boto3.Session()
+import time
+import re
+def athena_to_s3(session, params, max_execution = 5):
+    client = session.client('athena', region_name=params["region"])
+    execution = athena_query(client, params)
+    execution_id = execution['QueryExecutionId']
+    state = 'RUNNING'
+
+    while (max_execution > 0 and state in ['RUNNING', 'QUEUED']):
+        max_execution = max_execution - 1
+        response = client.get_query_execution(QueryExecutionId = execution_id)
+
+        if 'QueryExecution' in response and \
+                'Status' in response['QueryExecution'] and \
+                'State' in response['QueryExecution']['Status']:
+            state = response['QueryExecution']['Status']['State']
+            if state == 'FAILED':
+                return False
+            elif state == 'SUCCEEDED':
+                #print(response)
+                s3_path = response['QueryExecution']['ResultConfiguration']['OutputLocation']
+                query_result=client.get_query_results( QueryExecutionId=execution_id)
+                print(query_result)
+                filename = re.findall('.*\/(.*)', s3_path)[0]
+                return filename
+        time.sleep(1)
+    
+    return False
+#def athena_to_s3(session, params, max_execution=5):
+   
+# Query Athena and get the s3 filename as a result
+s3_filename = athena_to_s3(session, params)
+print(s3_filename)
+# Removes all files from the s3 folder you specified, so be careful
+#cleanup(session, params)
+
+
+#-----------------------------------------------stop query execution
+response_stop = client.stop_query_execution(
+    QueryExecutionId=response_start["QueryExecutionId"]
+)
+#print(response_stop)
+#-------------------------------------------------------------
 #--------------Test run 
-#libID="28364"
-#requestID="16"
-#fromDate="2023-08-30"
-#toDate="023-08-31"
-#libCreds=getLibCreds()
-#libToken=getToken(libCreds)
-#libResp=LibInQuery(libToken,libID,requestID,fromDate,toDate)
-#cleanLibInData=modifyLibQueryRes(libResp)
-#LibExcelFile=libInExcelToS3(cleanLibInData)
-#libData=lambda_handler()
+
 if __name__ == "__main__":
     event = []
     context = []
