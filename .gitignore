@@ -27,4 +27,5 @@ dependencyPackage*
 libInsight_venv/
 libInsight_venv*
 libInsight_venv
-
+#Codes
+s3toAthenaQuery.py
