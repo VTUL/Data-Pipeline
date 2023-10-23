@@ -23,16 +23,16 @@ def lambda_handler(event, context):
   #  libID="28410"
     #libID="3224"
     requestID="16"
-    fromDate="2023-05-03"
-    toDate="023-05-09" 
+    fromDate="2023-08-01"
+    toDate="023-08-30" 
     libCreds=getLibCreds()
     libToken=getToken(libCreds)
     #print('token is ',libToken)
     #print('libCreds are ',libCreds)
-    libRes=LibInQuery(libToken,libID,requestID,fromDate,toDate)
+    records=LibInQuery(libToken,libID,requestID,fromDate,toDate)
     #print('libRes is ',libRes)
-    cleanLibInData=modifyLibQueryRes(libRes)
-    LibExcelFile=libInExcelToS3(cleanLibInData)
+    cleanLibRecords=modifyLibQueryRes(records)
+    LibExcelFile=libInExcelToS3(cleanLibRecords)
     return {
        'statusCode': 200,
        'body':json.dumps('Excel file created')
@@ -75,59 +75,66 @@ def LibInQuery(libToken,libID,requestID,fromDate,toDate):
     'Authorization': 'Bearer '+libToken["access_token"],
     'Cookie': 'PHPSESSID=sonthqb0dsn6gn8c3n7vjs6cro'
   }
+  #Make get request
   response = requests.request("GET", url, headers=headers, data=payload)
-  return response
+  response_data=response.json()
+  #create list to store the values:
+  libData_allpages = []
+  pages=response_data['payload']['total_pages']
+  for page in range(response_data['payload']['total_pages']):
+     urlpage=page+1
+     url = 'https://vt.libinsight.com/v1.0/custom-dataset/'+libID+'/data-grid?request_id='+requestID+'&from='+fromDate+'&to='+toDate+'&page='+str(urlpage)
+     response_perpage = requests.request("GET", url, headers=headers, data=payload)
+     libDataPerPage=response_perpage.json()
+     if urlpage ==1: print("################################################ Total number of records: ",libDataPerPage['payload']['total_records'],"####################################################################")
+     #Get all libdata as a dictionary appended together eg: {type1:..,payload1:..,records1:[]}{type2:..,payload2:..,records2:[]}
+     libData_allpages.append(libDataPerPage)
+     #Get only records in libdata as a list of independent pages eg: [{'_id1': 10201, '_start_date1': '2023-08-01 12:59:00'},{'_id1': 10202, '_start_date1': '2023-08-01 12:59:00'},{'_id2': 10200, '_start_date2': '2023-08-01 12:59:00'},{'_id2': 10199, '_start_date2': '2023-08-01 10:37:00'}...] where id1.. corres. to page1 and id2.. corres. to page2     
+     if urlpage == 1: 
+      records=libDataPerPage['payload']['records']
+     else:
+      newrecords=libDataPerPage['payload']['records']
+      records.extend(newrecords)        
+        
+  return records
 
 
 #---------------------PART3: modify/transforming the list:
-def modifyLibQueryRes(libRes):
-#get query data as a string
-
-  response=libRes
-  jsonDict=response.json()#return json as a dictionary
-  print(type(jsonDict))
-
-  #quit()
-  jsonResString=response.text#return json as a string
-  #print(jsonResString)
-  #type(jsonResString)
-  #quit()
-  #Delete the following parameters from the json dictionary
-#  DeletionList=["_entered_by","who","answeredBy","classroom","walkins","employee","studio","affiliation","scans","reformat"]
+def modifyLibQueryRes(librecords):
+#libinsight records as a list for all the pages 
+  records=librecords
   DeletionList=["_entered_by","walkins","scans","reformat"]
-  #print(jsonDict)
-  for i in range(len(jsonDict["payload"]["records"])):
+  for i in range(len(records)):
     for j in range(len(DeletionList)):
-      del jsonDict["payload"]["records"][i][DeletionList[j]]
+      del records[i][DeletionList[j]]
 
-# Cleaned json lib insight query after deletion of the above parameters
-  jsonDictClean=jsonDict["payload"]["records"]
-  return jsonDictClean
+# Cleaned lib insight query records after deletion of the above parameters
+  cleanLibRecords=records
+  return cleanLibRecords
 
 #----------------------------PART 4: Convert the clean dictionary to a dataframe and store it in excel sheet
-def libInExcelToS3(jsonDictClean):
-  jsonDframeOriginal=pd.DataFrame(jsonDictClean)
-  df=jsonDframeOriginal
+def libInExcelToS3(cleanLibRecords):
+  #clean lib insight records as a dataframe
+  libRecsDF=pd.DataFrame(cleanLibRecords)
   #------remove brackets from question type 
-  df['Question Type']=df['Question Type'].str.get(0)
+  libRecsDF['Question Type']=libRecsDF['Question Type'].str.get(0)
   #------change date format from y-m-d h-m-s to m/d/y h-m
-  df['_start_date']=pd.to_datetime(df['_start_date'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%m/%d/%y %H:%M')
-  #print(df['Question Type'])
-  #print(df['_start_date'])
+  libRecsDF['_start_date']=pd.to_datetime(libRecsDF['_start_date'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%m/%d/%y %H:%M')
+  #print(libRecsDF['Question Type'])
+  #print(libRecsDF['_start_date'])
   #quit()
   #------combine research and topic 
-  df['Research_Topic'] = [''.join(i) for i in zip(df['research'], df['topic'])]
-  df=df.drop(columns=['research','topic'])
-  jsonDframe=df
-  df_just_models = jsonDframe#pd.DataFrame(just_models)
+  libRecsDF['Research_Topic'] = [''.join(i) for i in zip(libRecsDF['research'], libRecsDF['topic'])]
+  libRecsDF=libRecsDF.drop(columns=['research','topic'])
+  #serialize dataframe to s3 in the memory
   mem_file = io.BytesIO()
   #----------to excel
   #writer=pd.ExcelWriter(mem_file,engine='xlsxwriter')
   #Write libinsight data to excel file
-  #df_just_models.to_excel(mem_file, engine='xlsxwriter',index=False)
+  #libRecsDF.to_excel(mem_file, engine='xlsxwriter',index=False)
   #Write libinsight data to csv file
   #------to csv
-  df_just_models.to_csv(mem_file, encoding='utf-8',index=False)
+  libRecsDF.to_csv(mem_file, encoding='utf-8',index=False)
 
   
 #-------------------------PART5: Upload excel sheet to s3:
@@ -146,7 +153,7 @@ def libInExcelToS3(jsonDictClean):
   s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_file.getvalue())
 
   return mem_file.getvalue()
-#--------------Test run 
+#--------------lambda test run 
 
 if __name__ == "__main__":
     event = []
