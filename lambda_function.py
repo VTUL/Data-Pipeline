@@ -19,20 +19,30 @@ from io import StringIO
 
 def lambda_handler(event, context):
     #Following are the events for Lambda
-    libID="28364"
-  #  libID="28410"
-    #libID="3224"
-    requestID="16"
-    fromDate="2023-08-01"
-    toDate="023-08-30" 
+
     libCreds=getLibCreds()
     libToken=getToken(libCreds)
     #print('token is ',libToken)
     #print('libCreds are ',libCreds)
-    records=LibInQuery(libToken,libID,requestID,fromDate,toDate)
-    #print('libRes is ',libRes)
+    libID="28364"
+  #  libID="28410"
+    #libID="3224"
+    requestID="16"
+    #fromDate="2023-08-01"
+    #toDate="023-08-30"
+    fromDate="2022-10-17"
+    toDate="2023-10-16" 
+    fromDate=["2021-10-17","2022-10-17"]
+    toDate=["2022-10-16","2023-10-16"] 
+    #combine records from starting date of 12/06/2021 to 10/16/2023
+    allrecords=[]
+    for i in range(len(fromDate)):
+      records=LibInQuery(libToken,libID,requestID,fromDate[i],toDate[i])
+      allrecords.extend(records)
+    records=allrecords
+    #print('records are ',records)
     cleanLibRecords=modifyLibQueryRes(records)
-    LibExcelFile=libInExcelToS3(cleanLibRecords)
+    LibDataFile=libDataToS3(cleanLibRecords)
     return {
        'statusCode': 200,
        'body':json.dumps('Excel file created')
@@ -77,6 +87,7 @@ def LibInQuery(libToken,libID,requestID,fromDate,toDate):
   }
   #Make get request
   response = requests.request("GET", url, headers=headers, data=payload)
+  print("response is ",response)
   response_data=response.json()
   #create list to store the values:
   libData_allpages = []
@@ -86,7 +97,7 @@ def LibInQuery(libToken,libID,requestID,fromDate,toDate):
      url = 'https://vt.libinsight.com/v1.0/custom-dataset/'+libID+'/data-grid?request_id='+requestID+'&from='+fromDate+'&to='+toDate+'&page='+str(urlpage)
      response_perpage = requests.request("GET", url, headers=headers, data=payload)
      libDataPerPage=response_perpage.json()
-     if urlpage ==1: print("################################################ Total number of records: ",libDataPerPage['payload']['total_records'],"####################################################################")
+     if urlpage ==1: print("###################### Total number of records for dates "+fromDate+" to "+toDate+ "are: ",libDataPerPage['payload']['total_records'],"######################")
      #Get all libdata as a dictionary appended together eg: {type1:..,payload1:..,records1:[]}{type2:..,payload2:..,records2:[]}
      libData_allpages.append(libDataPerPage)
      #Get only records in libdata as a list of independent pages eg: [{'_id1': 10201, '_start_date1': '2023-08-01 12:59:00'},{'_id1': 10202, '_start_date1': '2023-08-01 12:59:00'},{'_id2': 10200, '_start_date2': '2023-08-01 12:59:00'},{'_id2': 10199, '_start_date2': '2023-08-01 10:37:00'}...] where id1.. corres. to page1 and id2.. corres. to page2     
@@ -112,8 +123,8 @@ def modifyLibQueryRes(librecords):
   cleanLibRecords=records
   return cleanLibRecords
 
-#----------------------------PART 4: Convert the clean dictionary to a dataframe and store it in excel sheet
-def libInExcelToS3(cleanLibRecords):
+#----------------------------PART 4: Convert the clean dictionary to a dataframe and store it in excel/csv 
+def libDataToS3(cleanLibRecords):
   #clean lib insight records as a dataframe
   libRecsDF=pd.DataFrame(cleanLibRecords)
   #------remove brackets from question type 
