@@ -40,6 +40,9 @@ def lambda_handler(event, context):
       records=LibInQuery(libToken,libID,requestID,fromDate[i],toDate[i])
       allrecords.extend(records)
     records=allrecords
+    #Get max date time of the records:
+    libMaxDate=maxlibdate(records)
+    print('maximum date time in the records is ',libMaxDate)
     #print('records are ',records)
     cleanLibRecords=modifyLibQueryRes(records)
     LibDataFile=libDataToS3(cleanLibRecords)
@@ -164,6 +167,24 @@ def libDataToS3(cleanLibRecords):
   s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_file.getvalue())
 
   return mem_file.getvalue()
+
+#---------------FIND MAXIMUM TIME: INPUT: RECORDS, OUTPUT: MAX TIME
+#take all records as a list, convert to dataframe and find maximum time:
+def maxlibdate(allrecords):
+  alldates=[]
+  for i in range(len(allrecords)):
+    date=allrecords[i]['_start_date']
+    alldates.append(date)
+  #print('all dates: ',alldates)
+  #convert all the dates to a dataframe
+  datesDF=pd.DataFrame(alldates,columns=['dateTime'])
+  #print('dates dataframe: ', datesDF)
+  maxDateTime=datesDF['dateTime'].agg(['max'])
+  #get the first element of the max date time pd object as a string:
+  maxDTstr=maxDateTime.iloc[0]
+  print(maxDTstr)
+  return maxDTstr
+
 #--------------lambda test run 
 
 if __name__ == "__main__":
