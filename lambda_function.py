@@ -64,9 +64,6 @@ def lambda_handler(event, context):
     
     #Get past records from 2021 to 2023:
     records=records_allyrs(libToken,libID,requestID,fromDate,toDate)#allrecords
-    #Update the existing records:append weekly data 
-    ##records=update_records(records, libToken,libID,requestID,fromDate,toDate)
-    #print(records)
     #Get max date time of the records:
     libMaxDate=maxlibdate(records)
     print('maximum date time in the records is ',libMaxDate)
@@ -75,10 +72,6 @@ def lambda_handler(event, context):
     #LibDataFile=libDataToS3(cleanLibRecords)
     cleanlibDF=libDataFrame(cleanLibRecords)
     libDataToS3=libDFToS3(cleanlibDF,updateLibData)
-    
-    #if updateLibData==0: libToS3=libDFToS3(cleanlibDF)
-    #if updateLibData==1: updatelibRecsInS3=updatelibcsvInS3(cleanlibDF)
-    
     return {
        'statusCode': 200,
        'body':json.dumps('Excel file created')
@@ -114,7 +107,7 @@ def getToken(libCreds):
   return libToken
 #-------------------------------------------------------
 
-#------------------------------------------------------------------------PART 2: Make the query for the given parameters:
+#------------------------------------PART 2: Make the query for the given parameters:
 def LibInQuery(libToken,libID,requestID,fromDate,toDate):
   url = 'https://vt.libinsight.com/v1.0/custom-dataset/'+libID+'/data-grid?request_id='+requestID+'&from='+fromDate+'&to='+toDate
 
@@ -147,9 +140,9 @@ def LibInQuery(libToken,libID,requestID,fromDate,toDate):
       records.extend(newrecords)        
         
   return records
-#------------------------------------------------------------------------------------------------------------------------
+#---------------------------------------------------------------------------------------
 
-#-------------------------------------------------------------------------------PART3: modify/transforming the list:
+#--------------------------------------------------PART3: modify/transforming the list:
 def modifyLibQueryRes(librecords):
 #libinsight records as a list for all the pages 
   records=librecords
@@ -161,9 +154,9 @@ def modifyLibQueryRes(librecords):
 # Cleaned lib insight query records after deletion of the above parameters
   cleanLibRecords=records
   return cleanLibRecords
-#------------------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------
 
-#---------------------------------------------------------------PART 4: Convert the cleaned lib data dictionary to a dataframe using pandas
+#--------------------PART 4: Convert the cleaned lib data dictionary to a dataframe using pandas
 def libDataFrame(cleanLibRecords):
   #clean lib insight records as a dataframe
   cleanLibDF=pd.DataFrame(cleanLibRecords)
@@ -178,8 +171,8 @@ def libDataFrame(cleanLibRecords):
   cleanLibDF['Research_Topic'] = [''.join(i) for i in zip(cleanLibDF['research'], cleanLibDF['topic'])]
   cleanLibDF=cleanLibDF.drop(columns=['research','topic'])
   return cleanLibDF
-#----------------------------------------------------------------------------------------------------------------------------------------
-#serialize dataframe in excel/csv to s3 bucket-------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------
+#----------------------PART 5: Serialize dataframe in excel/csv to s3 bucket-----------------------
 def libDFToS3(cleanlibDF,updateLibData):
   #serialize dataframe to s3 in the memory
   mem_file = io.BytesIO()
@@ -190,9 +183,9 @@ def libDFToS3(cleanlibDF,updateLibData):
   #Write libinsight data to csv file
   #------to csv
   cleanlibDF.to_csv(mem_file, encoding='utf-8',index=False)
-#----------------------------------------------------------------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------------------------
  
-#-------------------------PART5: Upload csv to s3 after checking to 1. create a new libinsight record or 2. upload existing libinsight record:
+#--PART6: Upload csv to s3 after checking to 1. create a new libinsight record or 2. upload existing libinsight record:
 
   s3 = boto3.client('s3')
   #  s3 = boto3.client('s3')
@@ -216,9 +209,9 @@ def libDFToS3(cleanlibDF,updateLibData):
     appended_data_encoded = appended_data.to_csv(None, index=False).encode('utf-8')
     # write the appended data to s3 bucket
     s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=appended_data_encoded)
-#------------------------------------------------------------------------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------------------------------------------------------
 
-#---------------find maximum time for the given libinsight records: INPUT: RECORDS, OUTPUT: MAX TIME
+#---------------------------------find maximum time for the given libinsight records: INPUT: RECORDS, OUTPUT: MAX TIME
 #take all records as a list, convert to dataframe and find maximum time:
 def maxlibdate(allrecords):
   alldates=[]
@@ -236,7 +229,7 @@ def maxlibdate(allrecords):
   return maxDTstr
 #---------------------------------------------------------------------------------------------------------
 
-#combine records for all the years or any given date range---------------------------------------------------
+#combine records for all the years or any given date range------------------------------------------------
 def records_allyrs(libToken,libID,requestID,fromDate,toDate):
   #combine records from starting date of 12/06/2021 to 10/16/2023
   allrecords=[]
@@ -244,7 +237,7 @@ def records_allyrs(libToken,libID,requestID,fromDate,toDate):
     records=LibInQuery(libToken,libID,requestID,fromDate[i],toDate[i])
     allrecords.extend(records)
   return allrecords
-#------------------------------------------------------------------------------------------------------------
+#--------------------------------------------------------------------------------------------------------
 #--------------lambda test run 
 
 if __name__ == "__main__":
