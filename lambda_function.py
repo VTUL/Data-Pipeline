@@ -17,7 +17,6 @@ libDFToS3: Serializes cleaned libinsight records to s3 and creates/updates libin
 maxlibdate: Gets the maximum data for given libinisight records for the specified time frame
 """
 
-#---------------connect everything with lambda function:
 import boto3
 from botocore.vendored import requests 
 import requests
@@ -31,6 +30,7 @@ import json
 import os
 from io import StringIO
 from datetime import date
+from datetime import datetime
 #import time
 #import csv
 #import athena_from_s3
@@ -50,15 +50,27 @@ def lambda_handler(event, context):
     requestID="16"
     #fromDate=["2023-08-01"]
     #toDate=["023-08-30"]
-    #fromDate="2022-10-17"
-    #toDate="2023-10-16" 
     #past/old records csv file creation if 0 and append new records if 1
     updateLibData=1
     if updateLibData==0:
       fromDate=["2021-10-21","2022-10-21"]
       toDate=["2022-10-20","2023-10-20"]
     else: 
-      fromDate=["2023-10-16"]
+      #fromDate=["2023-10-16"]
+      s3 = boto3.client('s3')
+      csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv')
+      current_data = csv_obj['Body'].read().decode('utf-8')
+      existingrecords_df = pd.read_csv(StringIO(current_data))
+      #get the data frame of start dates from all the records
+      startDatesdf=pd.to_datetime(existingrecords_df['_start_date'])#,dtype=object)
+      print('MAX MAX MAX ',startDatesdf.max(),'type of max ',type(startDatesdf.max()))
+      #max date time stamp in the format %Y-%m-%d %H:%M:%S
+      maxDateTime=str(startDatesdf.max())
+      #convert above to format %Y-%m-%d to use as fromDate:
+      maxDateTimestrip=datetime.strptime(maxDateTime,"%Y-%m-%d %H:%M:%S")
+      maxDatestr=maxDateTimestrip.strftime("%Y-%m-%d")
+      fromDate=[maxDatestr]#maxlibdate(existingrecords_df)
+      print("exisitng records max date is ",fromDate)
       toDate=[date.today().strftime('%Y-%m-%d')]
 
     
