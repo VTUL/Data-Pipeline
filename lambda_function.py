@@ -14,7 +14,6 @@ LibInQuery: Get libinsight response query using libinsight token, libinsight ID,
 modifyLibQueryRes: Cleans/modifies the records obtained from the query
 libDataFrame: Converts the cleaned records to a dataframe using pandas
 libDFToS3: Serializes cleaned libinsight records to s3 and creates/updates libinsight records
-maxlibdate: Gets the maximum data for given libinisight records for the specified time frame
 """
 
 import boto3
@@ -29,8 +28,9 @@ from requests.auth import HTTPBasicAuth
 import json
 import os
 from io import StringIO
+import datetime
 from datetime import date
-from datetime import datetime
+from datetime import datetime, timedelta
 #import time
 #import csv
 #import athena_from_s3
@@ -53,8 +53,8 @@ def lambda_handler(event, context):
     #past/old records csv file creation if 0 and append new records if 1
     updateLibData=1
     if updateLibData==0:
-      fromDate=["2021-10-21","2022-10-21"]
-      toDate=["2022-10-20","2023-10-20"]
+      fromDate=["2021-10-24","2022-10-24"]
+      toDate=["2022-10-23","2023-10-23"]
     else: 
       #fromDate=["2023-10-16"]
       s3 = boto3.client('s3')
@@ -69,9 +69,12 @@ def lambda_handler(event, context):
       #convert above to format %Y-%m-%d to use as fromDate:
       maxDateTimestrip=datetime.strptime(maxDateTime,"%Y-%m-%d %H:%M:%S")
       maxDatestr=maxDateTimestrip.strftime("%Y-%m-%d")
-      fromDate=[maxDatestr]#maxlibdate(existingrecords_df)
+      #from date is max date +1day to avoid same day data printed out twice i.e. to Date will be the same as from date if 1 day is not added
+      maxDatestrPlus1=datetime.strptime(maxDatestr,"%Y-%m-%d")+timedelta(days=1)
+      fromDate=[maxDatestrPlus1.strftime("%Y-%m-%d")]
       print("exisitng records max date is ",fromDate)
       toDate=[date.today().strftime('%Y-%m-%d')]
+      print("current date", toDate)
 
     
     #Get past records from 2021 to 2023:
@@ -106,7 +109,7 @@ def getLibCreds():
 
 #---------------PART 1:b. Get libInsight Token:
 def getToken(libCreds):
-  print('libCreds are : ',libCreds)
+  #print('libCreds are : ',libCreds)
   LibInsightClientID=libCreds[0]#config["LibInsightEnvVars"]["LibInsightClientID"]
   LibInsightClientSecret=libCreds[1]#config["LibInsightEnvVars"]["LibInsightClientSecret"]
   LibInsightHostName=libCreds[2]#config["LibInsightEnvVars"]["LibInsightHostName"]
