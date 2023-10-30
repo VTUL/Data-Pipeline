@@ -69,10 +69,10 @@ def lambda_handler(event, context):
       #convert above to format %Y-%m-%d to use as fromDate:
       maxDateTimestrip=datetime.strptime(maxDateTime,"%Y-%m-%d %H:%M:%S")
       maxDatestr=maxDateTimestrip.strftime("%Y-%m-%d")
-      #from date is max date +1day to avoid same day data printed out twice i.e. to Date will be the same as from date if 1 day is not added
+      #'from date' is max date +1day, this is to avoid the same day data printed out to csv twice i.e. 'to Date' will be the same as 'from date' if 1 day is not added
       maxDatestrPlus1=datetime.strptime(maxDatestr,"%Y-%m-%d")+timedelta(days=1)
       fromDate=[maxDatestrPlus1.strftime("%Y-%m-%d")]
-      print("exisitng records max date is ",fromDate)
+      print("existing records max date is ",fromDate)
       toDate=[date.today().strftime('%Y-%m-%d')]
       print("current date", toDate)
 
