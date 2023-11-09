@@ -51,10 +51,15 @@ def lambda_handler(event, context):
     #fromDate=["2023-08-01"]
     #toDate=["023-08-30"]
     #past/old records csv file creation if 0 and append new records if 1
-    updateLibData=1
+    updateLibData=0
+    # Libinsight only allows yearly access to query data. So get data every year and append in csv(first day records were made is 2023-12-06):
+    #Initial run: If updateLibData==0 then get all the records until the last element in toDate
+    #If updateLibData==1 then find the maximum date in the existing csv created above and append data from the max date to todays date. This will be used for triggering using lambda
     if updateLibData==0:
-      fromDate=["2021-10-24","2022-10-24"]
-      toDate=["2022-10-23","2023-10-23"]
+      #fromDate=["2021-10-24","2022-10-24"]
+      #toDate=["2022-10-23","2023-10-23"]
+      fromDate=["2021-11-03","2022-11-03"]
+      toDate=["2022-11-02","2023-11-02"]
     else: 
       #fromDate=["2023-10-16"]
       s3 = boto3.client('s3')
