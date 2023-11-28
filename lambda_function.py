@@ -1,4 +1,14 @@
+'''
+ # @ Author: Padma Carstens, James Tuttle. Parts of the code were taken from Jeremiah Puryear's data pipeline workflow.
+ # @ University: Virginia Tech
+ # @ Department: Virginia Tech University libraries (VTUL)
+ # @ Project: Data Pipeline with Data Analytics team
+ # @ Team: Data Services
+ # @ License: MIT License
+ # @ Create Time: 2023-10-03 16:30:54
+ '''
 """
+
 Purpose: 
 To pipeline data from libinsight to tableau for data analytics team. Parts of code were taken from Jeremiah Puryear and Jim Tuttle's original pipelining scripts
 1. Downloads libinsight records using libID, requestID, fromDate, toDate and libinsight credentials
@@ -14,6 +24,11 @@ LibInQuery: Get libinsight response query using libinsight token, libinsight ID,
 modifyLibQueryRes: Cleans/modifies the records obtained from the query
 libDataFrame: Converts the cleaned records to a dataframe using pandas
 libDFToS3: Serializes cleaned libinsight records to s3 and creates/updates libinsight records
+
+Links:
+vt gitlab repo: https://code.vt.edu/dataservices/data-pipeline
+libinsights api: https://ask.springshare.com/libinsight/faq/2100
+
 """
 
 import boto3
@@ -74,7 +89,7 @@ def lambda_handler(event, context):
       #convert above to format %Y-%m-%d to use as fromDate:
       maxDateTimestrip=datetime.strptime(maxDateTime,"%Y-%m-%d %H:%M:%S")
       maxDatestr=maxDateTimestrip.strftime("%Y-%m-%d")
-      #'from date' is max date +1day, this is to avoid the same day data printed out to csv twice i.e. 'to Date' will be the same as 'from date' if 1 day is not added
+      #'from date' is max date +1day, this is to avoid the same day data printed out to csv twice 
       maxDatestrPlus1=datetime.strptime(maxDatestr,"%Y-%m-%d")+timedelta(days=1)
       fromDate=[maxDatestrPlus1.strftime("%Y-%m-%d")]
       print("existing records max date is ",fromDate)
@@ -137,7 +152,7 @@ def LibInQuery(libToken,libID,requestID,fromDate,toDate):
     'Authorization': 'Bearer '+libToken["access_token"],
     'Cookie': 'PHPSESSID=sonthqb0dsn6gn8c3n7vjs6cro'
   }
-  #Make get request
+  #Make a request and get the response:
   response = requests.request("GET", url, headers=headers, data=payload)
   print("response is ",response)
   response_data=response.json()
