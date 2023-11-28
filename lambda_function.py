@@ -100,8 +100,8 @@ def lambda_handler(event, context):
     #Get past records from 2021 to 2023:
     records=records_allyrs(libToken,libID,requestID,fromDate,toDate)#allrecords
     #Get max date time of the records:
-    libMaxDate=maxlibdate(records)
-    print('maximum date time in the records is ',libMaxDate)
+    #libMaxDate=maxlibdate(records)
+    #print('maximum date time in the records is ',libMaxDate)
     #print('records are ',records)
     cleanLibRecords=modifyLibQueryRes(records)
     #LibDataFile=libDataToS3(cleanLibRecords)
@@ -246,22 +246,6 @@ def libDFToS3(cleanlibDF,updateLibData):
     s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=appended_data_encoded)
 #-------------------------------------------------------------------------------------------------------------------------------
 
-#---------------------------------find maximum time for the given libinsight records: INPUT: RECORDS, OUTPUT: MAX TIME
-#take all records as a list, convert to dataframe and find maximum time:
-def maxlibdate(allrecords):
-  alldates=[]
-  for i in range(len(allrecords)):
-    date=allrecords[i]['_start_date']
-    alldates.append(date)
-  #print('all dates: ',alldates)
-  #convert all the dates to a dataframe
-  datesDF=pd.DataFrame(alldates,columns=['dateTime'])
-  #print('dates dataframe: ', datesDF)
-  maxDateTime=datesDF['dateTime'].agg(['max'])
-  #get the first element of the max date time pd object as a string:
-  maxDTstr=maxDateTime.iloc[0]
-  print(maxDTstr)
-  return maxDTstr
 #---------------------------------------------------------------------------------------------------------
 
 #combine records for all the years or any given date range------------------------------------------------
