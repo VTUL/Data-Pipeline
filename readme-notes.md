@@ -64,7 +64,7 @@ For the first run the date range is from 2021/11/03-2023/11/02. Following lines 
       fromDate=["2021-11-03","2022-11-03"]
       toDate=["2022-11-02","2023-11-02"]
 
-[ ] Obtaining date range for weekly updates:
+- [ ] Obtaining date range for weekly updates:
  
 After the date 2023/11/02, data is collected in weekly increments from [start date of the week] to [end date of the week] for 'updateLibData' not equal to '0'. [start date of the week] is obtained by reading the dates on the previous data file and finding the maximum date:
 ``` 
@@ -118,40 +118,40 @@ This is obtained using oauth2:
       records.extend(newrecords)    
 ```
 - Transform the query response parameters:
-[ ] From the query list, delete the following parameters from the deletion list:
+- [ ] From the query list, delete the following parameters from the deletion list:
 ```
   DeletionList=["_entered_by","walkins","scans","reformat"]
   for i in range(len(records)):
     for j in range(len(DeletionList)):
       del records[i][DeletionList[j]]
 ```
-[ ] Convert the query response data dictionary to a dataframe using pandas:
+- [ ] Convert the query response data dictionary to a dataframe using pandas:
 ```
   cleanLibDF=pd.DataFrame(cleanLibRecords)
 ```
-[ ] The response for the parameter 'Question Type' is returned inside brackets for eg: 'question_type: [Reference]'. Remove brackets from this column :
+- [ ] The response for the parameter 'Question Type' is returned inside brackets for eg: 'question_type: [Reference]'. Remove brackets from this column :
 ```
 cleanLibDF['Question Type']=cleanLibDF['Question Type'].str.get(0)
 ```
-[ ] Change date format from y-m-d h-m-s to m/d/y h-m:
+- [ ] Change date format from y-m-d h-m-s to m/d/y h-m:
 ```
   cleanLibDF['_start_date']=pd.to_datetime(cleanLibDF['_start_date'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%m/%d/%y %H:%M')
 ```
  
-[ ] Combine 'research' and 'topic' columns:
+- [ ] Combine 'research' and 'topic' columns:
 ```
   cleanLibDF['Research_Topic'] = [''.join(i) for i in zip(cleanLibDF['research'], cleanLibDF['topic'])]
   cleanLibDF=cleanLibDF.drop(columns=['research','topic'])
 ``` 
 - Serialize data to s3: 
  
-[ ] Serialize dataframe to s3 in the memory and save it as a csv file:
+- [ ] Serialize dataframe to s3 in the memory and save it as a csv file:
 ``` 
   mem_file = io.BytesIO()
   cleanlibDF.to_csv(mem_file, encoding='utf-8',index=False)
 ``` 
  
-[ ] Upload csv to s3 :
+- [ ] Upload csv to s3 :
 ``` 
   s3 = boto3.client('s3')
   buckets = s3.list_buckets()
