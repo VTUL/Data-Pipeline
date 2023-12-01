@@ -6,15 +6,15 @@ The data pipeline project was created for data analytics team at [data services]
 
 The script(lambda function) is broken down into the following parts:
 
--Get query results from [libinsight](https://vt.libinsight.com/) using [libinsight api](https://ask.springshare.com/libinsight/faq/2100) with parameters: libinsight ID, data range and libinsight token
--Append all the pages of the libinsight query results together as one dictionary. Libinsight api returns query results that are limited to one page at a time.
--Transform the query response parameters to fit the needs of the data analytics team.
--Serialize the data to s3 bucket and upload the record as a csv file
--Create athena query and store query results in the s3 bucket
--Upload and automate athena query results to tableau for data analysis
--Add triggers to automate the upload on a weekly basis
+- Get query results from [libinsight](https://vt.libinsight.com/) using [libinsight api](https://ask.springshare.com/libinsight/faq/2100) with parameters: libinsight ID, data range and libinsight token
+- Append all the pages of the libinsight query results together as one dictionary. Libinsight api returns query results that are limited to one page at a time.
+- Transform the query response parameters to fit the needs of the data analytics team.
+- Serialize the data to s3 bucket and upload the record as a csv file
+- Create athena query and store query results in the s3 bucket
+- Upload and automate athena query results to tableau for data analysis
+- Add triggers to automate the upload on a weekly basis
 
-The lambda function to start the ec2 instance is [StartLibInsightEC2Instance](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/StartLibInsightEC2Instance?tab=code). The lambda function to stop the ec2 instance is [StopLibInsightEC2Instance](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/StopLibInsightEC2Instance?tab=code). Triggers are also added to these instances.
+The lambda function to start the ec2 instance is [StartLibInsightEC2Instance](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/StartLibInsightEC2Instance?tab=code). The lambda function to stop the ec2 instance is [StopLibInsightEC2Instance](https://us-east-1.console.aws.amazon.com/lambda/home?region=us-east-1#/functions/StopLibInsightEC2Instance?tab=code). Triggers are also added to these lambda functions.
 
 
 ## Documentation
