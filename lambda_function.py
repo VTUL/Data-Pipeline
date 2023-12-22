@@ -10,19 +10,19 @@
 """
 
 Purpose: 
-To pipeline data from libinsight to tableau for data analytics team. Parts of code were taken from Jeremiah Puryear and Jim Tuttle's original pipelining scripts
+To pipeline data from libinsight to tableau for data analytics team. Parts of code were taken from Jeremiah Puryear and Jim Tuttle's original pipelining scripts. Note: 'records' in the script refer to all the libinsight records for id 28364. The script does the following:
 1. Downloads libinsight records using libID, requestID, fromDate, toDate and libinsight credentials
 2. Cleans/modifies the records 
 3. Uploads cleaned records to s3 bucket after serialization
-2. Updates records every week.
+4. Updates records every week as triggered by lambda function. These are then queried by athena weekly trigger 
 
 Functions used:
 lambda_handler: function used to run the script on aws lambda
 getLibCreds: Gets libinisight credentials stored as environment variables
-getLibCreds: Gets libinsight token using libinsight credentials
+getToken: Gets libinsight token using libinsight credentials
 LibInQuery: Get libinsight response query using libinsight token, libinsight ID, libinsight request ID, records to fetch 'from date' and 'to date'
-modifyLibQueryRes: Cleans/modifies the records obtained from the query
-libDataFrame: Converts the cleaned records to a dataframe using pandas
+deleteFields: Delete some column fields in the records obtained from the query
+transformFields: Apply transformations to some column fields after converting records to a dataframe using pandas
 libDFToS3: Serializes cleaned libinsight records to s3 and creates/updates libinsight records
 
 Links:
@@ -36,6 +36,7 @@ from botocore.vendored import requests
 import requests
 import pandas as pd
 import io
+import csv
 import configparser
 from oauthlib.oauth2 import BackendApplicationClient
 from requests_oauthlib import OAuth2Session
@@ -44,12 +45,10 @@ import json
 import os
 from io import StringIO
 import datetime
-from datetime import date
 from datetime import datetime, timedelta
-#import time
-#import csv
-#import athena_from_s3
-#import S3_cleanup
+import csv
+import numpy as np
+
 
 #----------------------------lambda_handler: function used to run the script on aws lambda
 def lambda_handler(event, context):
@@ -60,53 +59,53 @@ def lambda_handler(event, context):
     #print('token is ',libToken)
     #print('libCreds are ',libCreds)
     libID="28364"
-  #  libID="28410"
-    #libID="3224"
     requestID="16"
-    #fromDate=["2023-08-01"]
-    #toDate=["023-08-30"]
-    #past/old records csv file creation if 0 and append new records if 1
+
+    #if updateLibData=0, then collect old records and deposit to s3; if updateLibData=1 then collect current weekly records and append new records to the old records
     updateLibData=0
-    # Libinsight only allows yearly access to query data. So get data every year and append in csv(first day records were made is 2023-12-06):
+    # Note: Libinsight only allows yearly access to query data. So get data every year and append records of each year
     #Initial run: If updateLibData==0 then get all the records until the last element in toDate
-    #If updateLibData==1 then find the maximum date in the existing csv created above and append data from the max date to todays date. This will be used for triggering using lambda
+
+    #If updateLibData==1 then find the maximum date in the existing records and append current data from the max date of past records to the current date. This will be used for triggering using lambda
+
+    #Note: For updateLibData=1: the toDate is current Date minus 1day, this will allow the data to be collected for all the entries of the previous day irrespective of time. Setting this to current date(as opposed to subtracting a day) might result in missing out on collection of entries from the current run time to the end of the day, since time stamp is removed from toDate when running the automated inquiry on lambda
     if updateLibData==0:
-      #fromDate=["2021-10-24","2022-10-24"]
-      #toDate=["2022-10-23","2023-10-23"]
-      fromDate=["2021-11-03","2022-11-03"]
-      toDate=["2022-11-02","2023-11-02"]
+      fromDate=["2021-12-02","2022-12-02","2023-12-02"]#,"2022-12-02"]
+      toDate=["2022-12-01","2023-12-01","2023-12-15"]#,"2023-12-12"]
     else: 
-      #fromDate=["2023-10-16"]
+      #Get the max date from existing records, set it as fromDate, get current date as toDate
       s3 = boto3.client('s3')
       csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv')
       current_data = csv_obj['Body'].read().decode('utf-8')
       existingrecords_df = pd.read_csv(StringIO(current_data))
       #get the data frame of start dates from all the records
-      startDatesdf=pd.to_datetime(existingrecords_df['_start_date'])#,dtype=object)
+      startDatesdf=pd.to_datetime(existingrecords_df['_start_date'])
       print('MAX MAX MAX ',startDatesdf.max(),'type of max ',type(startDatesdf.max()))
       #max date time stamp in the format %Y-%m-%d %H:%M:%S
       maxDateTime=str(startDatesdf.max())
-      #convert above to format %Y-%m-%d to use as fromDate:
+      #remove time stamp from the max date i.e. convert to format %Y-%m-%d to use as fromDate:
       maxDateTimestrip=datetime.strptime(maxDateTime,"%Y-%m-%d %H:%M:%S")
       maxDatestr=maxDateTimestrip.strftime("%Y-%m-%d")
-      #'from date' is max date +1day, this is to avoid the same day data printed out to csv twice 
+      #Set fromDate as max date +1day, this is to avoid the same day data printed out to csv twice. 
       maxDatestrPlus1=datetime.strptime(maxDatestr,"%Y-%m-%d")+timedelta(days=1)
       fromDate=[maxDatestrPlus1.strftime("%Y-%m-%d")]
       print("existing records max date is ",fromDate)
-      toDate=[date.today().strftime('%Y-%m-%d')]
+      toDate=datetime.today()- timedelta(days=1)
+      toDate=[toDate.strftime('%Y-%m-%d')]
       print("current date", toDate)
 
-    
-    #Get past records from 2021 to 2023:
+
+    #If records are collected for more than one year then append the records:
     records=records_allyrs(libToken,libID,requestID,fromDate,toDate)#allrecords
-    #Get max date time of the records:
-    #libMaxDate=maxlibdate(records)
     #print('maximum date time in the records is ',libMaxDate)
     #print('records are ',records)
-    cleanLibRecords=modifyLibQueryRes(records)
+    #Delete some fields from the records:
+    cleanLibRecords=deleteFields(records)
     #LibDataFile=libDataToS3(cleanLibRecords)
-    cleanlibDF=libDataFrame(cleanLibRecords)
-    libDataToS3=libDFToS3(cleanlibDF,updateLibData)
+    #transform fields and return records in a dataframe:
+    cleanlibDF=transformFields(cleanLibRecords)
+    #serialize libdata to S3
+    libDFToS3(cleanlibDF,updateLibData)
     return {
        'statusCode': 200,
        'body':json.dumps('Excel file created')
@@ -177,10 +176,11 @@ def LibInQuery(libToken,libID,requestID,fromDate,toDate):
   return records
 #---------------------------------------------------------------------------------------
 
-#--------------------------------------------------PART3: modify/transforming the list:
-def modifyLibQueryRes(librecords):
+#--------------------------------------------------PART3: delete some fields from the records:
+def deleteFields(librecords):
 #libinsight records as a list for all the pages 
   records=librecords
+  #print('records are:',records)
   DeletionList=["_entered_by","walkins","scans","reformat"]
   for i in range(len(records)):
     for j in range(len(DeletionList)):
@@ -192,63 +192,87 @@ def modifyLibQueryRes(librecords):
 #-------------------------------------------------------------------------------------
 
 #--------------------PART 4: Convert the cleaned lib data dictionary to a dataframe using pandas
-def libDataFrame(cleanLibRecords):
+#def libDataFrame(cleanLibRecords):
+def transformFields(cleanLibRecords):
   #clean lib insight records as a dataframe
   cleanLibDF=pd.DataFrame(cleanLibRecords)
-  #------remove brackets from question type 
   cleanLibDF['Question Type']=cleanLibDF['Question Type'].str.get(0)
-  #------change date format from y-m-d h-m-s to m/d/y h-m
-  cleanLibDF['_start_date']=pd.to_datetime(cleanLibDF['_start_date'], format='%Y-%m-%d %H:%M:%S').dt.strftime('%m/%d/%y %H:%M')
+#----------------------
   #print(libRecsDF['Question Type'])
   #print(libRecsDF['_start_date'])
   #quit()
   #------combine research and topic 
   cleanLibDF['Research_Topic'] = [''.join(i) for i in zip(cleanLibDF['research'], cleanLibDF['topic'])]
   cleanLibDF=cleanLibDF.drop(columns=['research','topic'])
+  #------------deleting rows with null values in the columne start date. This avoids 'Null' being displayed in tableau:
+
+  print('Empty rows are: ',np.where(pd.isnull(cleanLibDF['_start_date'])))
+  cleanLibDF.dropna(subset=['_start_date'], inplace=True)
+  #replace new lines with space. This avoids 'comments' field from being written into the id field
+  cleanLibDF = cleanLibDF.replace(r'\n',' ', regex=True) 
+
   return cleanLibDF
 #-------------------------------------------------------------------------------------------------
 #----------------------PART 5: Serialize dataframe in excel/csv to s3 bucket-----------------------
 def libDFToS3(cleanlibDF,updateLibData):
   #serialize dataframe to s3 in the memory
   mem_file = io.BytesIO()
-  #----------to excel
-  #writer=pd.ExcelWriter(mem_file,engine='xlsxwriter')
-  #Write libinsight data to excel file
-  #libRecsDF.to_excel(mem_file, engine='xlsxwriter',index=False)
-  #Write libinsight data to csv file
-  #------to csv
-  cleanlibDF.to_csv(mem_file, encoding='utf-8',index=False)
-#-----------------------------------------------------------------------------------------------
- 
-#--PART6: Upload csv to s3 after checking to 1. create a new libinsight record or 2. upload existing libinsight record:
+
+#--PART6: Upload csv/json to s3 after checking: updateLibData=1: creates a new libinsight record or updateLibData=0: uploads existing libinsight record:
 
   s3 = boto3.client('s3')
   #  s3 = boto3.client('s3')
   buckets = s3.list_buckets()
-  #for bucket in buckets['Buckets']:
-  #  print(bucket['CreationDate'].ctime(), bucket['Name'])
 
-  #---------------------write libInsight data to excel file 
-  #s3.put_object(Bucket='lib-insight-serialized-data-created-in-east1-connect-to-athena',Key='LibInsightQueryData.xls',Body=mem_file.getvalue())
-  #--------------------------------------------------------
   #---------------------write libInsight data to csv file
   if updateLibData ==0: 
+    cleanlibcsvOld=cleanlibDF
+    #cleanlibOld=cleanlibDF 
+      #serialize dataframe to s3 in the memory
+    mem_file = io.BytesIO()
+    #Write libinsight dataframe to csv file    
+    #print("libinsight data frame is ",cleanlibDF)
+    cleanlibcsvOld.to_csv(mem_file, encoding='utf-8',index=False,na_rep='NAN',quotechar='"',quoting=csv.QUOTE_NONNUMERIC) 
+    #Serialize csv to S3:
     s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_file.getvalue())
+    #############################################################JSON:
+    #Write libinsight dataframe to json file 
+    #print('json file is ',cleanlibjsonOld)
+    #convert dataframe to json
+    from json import loads, dumps
+    newMemfile=io.BytesIO()
+    cleanlibcsvOld.to_json(newMemfile,orient='records', lines=True)
+    #Serialize csv to S3:
+    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.json',Body=newMemfile.getvalue())
   else:
-    bytes_to_write=cleanlibDF.to_csv(mem_file, encoding='utf-8',index=False)
-    csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv')
-    current_data = csv_obj['Body'].read().decode('utf-8')
-    current_df = pd.read_csv(StringIO(current_data))
-    # append new records to existing records
-    appended_data = pd.concat([current_df, cleanlibDF], ignore_index=True)
-    appended_data_encoded = appended_data.to_csv(None, index=False).encode('utf-8')
-    # write the appended data to s3 bucket
-    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=appended_data_encoded)
+    #Append weekly current data to existing csv:
+    csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv')# 
+    old_datacsv = csv_obj['Body'].read().decode('utf-8')
+    old_csv = pd.read_csv(StringIO(old_datacsv))
+    newWeeklyDF=cleanlibDF
+    appended_datacsv = pd.concat([old_csv, newWeeklyDF], ignore_index=True)
+    mem_filecsvNew = io.BytesIO()
+    appended_datacsv.to_csv(mem_filecsvNew, encoding='utf-8',index=False,na_rep='NAN',quotechar='"',quoting=csv.QUOTE_NONNUMERIC)
+
+    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_filecsvNew.getvalue())
+    #---------------------------
+    ##############20240111 json weekly appending not working
+    #json_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.json')
+    #old_datajson = json_obj['Body'].read().decode()
+    #old_json = old_datajson#json.loads(old_datajson)
+    ##print(old_json)
+     ##Append weekly current data to existing json:
+    #newWeeklyJson=cleanlibDF.to_json()
+    #appended_datajson = {old_json,newWeeklyJson}
+    #mem_filejsonNew = io.BytesIO()
+    #appended_datajson.to_json(mem_filejsonNew,orient='records', lines=True)
+    ### write the appended data to s3 bucket
+    #s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.json',Body=appended_datajson)
 #-------------------------------------------------------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------------------------------
 
-#combine records for all the years or any given date range------------------------------------------------
+#combine records for all the years or any given date range. Libinsight returns the records one year at a time and has a limit of one year data response, so combine records for all the years in the date range------------------------------------------------
 def records_allyrs(libToken,libID,requestID,fromDate,toDate):
   #combine records from starting date of 12/06/2021 to 10/16/2023
   allrecords=[]
