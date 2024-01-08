@@ -71,11 +71,12 @@ def lambda_handler(event, context):
     #Note: For updateLibData=1: the toDate is current Date minus 1day, this will allow the data to be collected for all the entries of the previous day irrespective of time. Setting this to current date(as opposed to subtracting a day) might result in missing out on collection of entries from the current run time to the end of the day, since time stamp is removed from toDate when running the automated inquiry on lambda
     if updateLibData==0:
       fromDate=["2021-12-02","2022-12-02","2023-12-02"]#,"2022-12-02"]
-      toDate=["2022-12-01","2023-12-01","2023-12-15"]#,"2023-12-12"]
+      toDate=["2022-12-01","2023-12-01","2024-01-01"]#,"2023-12-12"]
     else: 
       #Get the max date from existing records, set it as fromDate, get current date as toDate
       s3 = boto3.client('s3')
-      csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv')
+      #csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv')
+      csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightData-csv/LibInsightQueryData.csv')
       current_data = csv_obj['Body'].read().decode('utf-8')
       existingrecords_df = pd.read_csv(StringIO(current_data))
       #get the data frame of start dates from all the records
@@ -153,9 +154,9 @@ def LibInQuery(libToken,libID,requestID,fromDate,toDate):
   }
   #Make a request and get the response:
   response = requests.request("GET", url, headers=headers, data=payload)
-  print("response is ",response)
+  #print("response is ",response)
   response_data=response.json()
-  print(response)
+  #print(response)
   #create list to store the values:
   libData_allpages = []
   print("FROM AND TO DATE ",fromDate,' ',toDate)
@@ -209,7 +210,7 @@ def transformFields(cleanLibRecords):
   cleanLibDF=cleanLibDF.drop(columns=['research','topic'])
   #------------deleting rows with null values in the columne start date. This avoids 'Null' being displayed in tableau:
 
-  print('Empty rows are: ',np.where(pd.isnull(cleanLibDF['_start_date'])))
+  #print('Empty rows are: ',np.where(pd.isnull(cleanLibDF['_start_date'])))
   cleanLibDF.dropna(subset=['_start_date'], inplace=True)
   #replace new lines with space. This avoids 'comments' field from being written into the id field
   cleanLibDF = cleanLibDF.replace(r'\n',' ', regex=True) 
@@ -237,7 +238,8 @@ def libDFToS3(cleanlibDF,updateLibData):
     #print("libinsight data frame is ",cleanlibDF)
     cleanlibcsvOld.to_csv(mem_file, encoding='utf-8',index=False,na_rep=' ',quotechar='"',quoting=csv.QUOTE_NONNUMERIC) 
     #Serialize csv to S3:
-    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_file.getvalue())
+    #s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_file.getvalue())
+    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightData-csv/LibInsightQueryData.csv',Body=mem_file.getvalue())
     #############################################################JSON:
     #Write libinsight dataframe to json file 
     #print('json file is ',cleanlibjsonOld)
@@ -245,32 +247,48 @@ def libDFToS3(cleanlibDF,updateLibData):
     from json import loads, dumps
     newMemfile=io.BytesIO()
     cleanlibcsvOld.to_json(newMemfile,orient='records', lines=True)
-    #Serialize csv to S3:
-    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.json',Body=newMemfile.getvalue())
+    #Serialize json to S3:
+    #s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.json',Body=newMemfile.getvalue())
+    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightData-json/LibInsightQueryData.json',Body=newMemfile.getvalue())
   else:
     #Append weekly current data to existing csv:
-    csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv')# 
+    #csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv')# 
+    csv_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightData-csv/LibInsightQueryData.csv')# 
     old_datacsv = csv_obj['Body'].read().decode('utf-8')
     old_csv = pd.read_csv(StringIO(old_datacsv))
     newWeeklyDF=cleanlibDF
+    #print(cleanlibDF)
     appended_datacsv = pd.concat([old_csv, newWeeklyDF], ignore_index=True)
     mem_filecsvNew = io.BytesIO()
     appended_datacsv.to_csv(mem_filecsvNew, encoding='utf-8',index=False,na_rep=' ',quotechar='"',quoting=csv.QUOTE_NONNUMERIC)
 
-    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_filecsvNew.getvalue())
+    #s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_filecsvNew.getvalue())
+    s3.put_object(Bucket='analytics-datapipeline',Key='libinsightData-csv/LibInsightQueryData.csv',Body=mem_filecsvNew.getvalue())
     #---------------------------
     ##############20240111 json weekly appending not working
-    #json_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.json')
-    #old_datajson = json_obj['Body'].read().decode()
+    json_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightData-json/LibInsightQueryData.json')
+    old_datajson = json_obj['Body'].read().decode()
     #old_json = old_datajson#json.loads(old_datajson)
-    ##print(old_json)
-     ##Append weekly current data to existing json:
-    #newWeeklyJson=cleanlibDF.to_json()
-    #appended_datajson = {old_json,newWeeklyJson}
+    #df=pd.read_json(old_json)
+    print(old_datajson)
+    print(type(old_datajson))
+    #this is a string 
+    #quit()
+    #print(old_json)
+    #Append weekly current data to existing json:
+    #print(cleanlibDF)
+    newWeeklyJson=cleanlibDF.to_json(orient='records',lines=True)
+    print("NEW ",newWeeklyJson)
+    #quit()
+    appended_datajson = {old_datajson,newWeeklyJson}
+    print(appended_datajson)
+    #quit()
     #mem_filejsonNew = io.BytesIO()
     #appended_datajson.to_json(mem_filejsonNew,orient='records', lines=True)
-    ### write the appended data to s3 bucket
-    #s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.json',Body=appended_datajson)
+    ## write the appended data to s3 bucket
+    json_object=appended_datajson
+    #s3.put_object(Body=json.dumps(json_object),Bucket='analytics-datapipeline',Key='libinsightData-json/LibInsightQueryData.json')
+    s3.put_object(Body=json_object,Bucket='analytics-datapipeline',Key='libinsightData-json/LibInsightQueryData.json')
 #-------------------------------------------------------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------------------------------
