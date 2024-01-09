@@ -62,7 +62,7 @@ def lambda_handler(event, context):
     requestID="16"
 
     #if updateLibData=0, then collect old records and deposit to s3; if updateLibData=1 then collect current weekly records and append new records to the old records
-    updateLibData=1
+    updateLibData=0
     # Note: Libinsight only allows yearly access to query data. So get data every year and append records of each year
     #Initial run: If updateLibData==0 then get all the records until the last element in toDate
 
@@ -71,7 +71,7 @@ def lambda_handler(event, context):
     #Note: For updateLibData=1: the toDate is current Date minus 1day, this will allow the data to be collected for all the entries of the previous day irrespective of time. Setting this to current date(as opposed to subtracting a day) might result in missing out on collection of entries from the current run time to the end of the day, since time stamp is removed from toDate when running the automated inquiry on lambda
     if updateLibData==0:
       fromDate=["2021-12-02","2022-12-02","2023-12-02"]#,"2022-12-02"]
-      toDate=["2022-12-01","2023-12-01","2024-01-01"]#,"2023-12-12"]
+      toDate=["2022-12-01","2023-12-01","2024-01-08"]#,"2023-12-12"]
     else: 
       #Get the max date from existing records, set it as fromDate, get current date as toDate
       s3 = boto3.client('s3')
@@ -91,6 +91,10 @@ def lambda_handler(event, context):
       maxDatestrPlus1=datetime.strptime(maxDatestr,"%Y-%m-%d")+timedelta(days=1)
       fromDate=[maxDatestrPlus1.strftime("%Y-%m-%d")]
       print("existing records max date is ",fromDate)
+      #----------------
+      #print("for testing change from date ")
+      #fromDate=["2024-01-01"]
+      #----------
       toDate=datetime.today()- timedelta(days=1)
       toDate=[toDate.strftime('%Y-%m-%d')]
       print("current date", toDate)
@@ -265,30 +269,23 @@ def libDFToS3(cleanlibDF,updateLibData):
     #s3.put_object(Bucket='analytics-datapipeline',Key='libinsightdata-athena/LibInsightQueryData.csv',Body=mem_filecsvNew.getvalue())
     s3.put_object(Bucket='analytics-datapipeline',Key='libinsightData-csv/LibInsightQueryData.csv',Body=mem_filecsvNew.getvalue())
     #---------------------------
-    ##############20240111 json weekly appending not working
     json_obj = s3.get_object(Bucket='analytics-datapipeline',Key='libinsightData-json/LibInsightQueryData.json')
     old_datajson = json_obj['Body'].read().decode()
-    #old_json = old_datajson#json.loads(old_datajson)
-    #df=pd.read_json(old_json)
-    print(old_datajson)
     print(type(old_datajson))
     #this is a string 
     #quit()
     #print(old_json)
     #Append weekly current data to existing json:
-    #print(cleanlibDF)
     newWeeklyJson=cleanlibDF.to_json(orient='records',lines=True)
-    print("NEW ",newWeeklyJson)
+   # print("NEW ",newWeeklyJson[0:200])
+   # print("OLD ",old_datajson[0:200])
+    # Create a list of all the JSON files combined
+    json_files = [old_datajson,newWeeklyJson]
     #quit()
-    appended_datajson = {old_datajson,newWeeklyJson}
-    print(appended_datajson)
-    #quit()
-    #mem_filejsonNew = io.BytesIO()
-    #appended_datajson.to_json(mem_filejsonNew,orient='records', lines=True)
     ## write the appended data to s3 bucket
-    json_object=appended_datajson
-    #s3.put_object(Body=json.dumps(json_object),Bucket='analytics-datapipeline',Key='libinsightData-json/LibInsightQueryData.json')
-    s3.put_object(Body=json_object,Bucket='analytics-datapipeline',Key='libinsightData-json/LibInsightQueryData.json')
+    s3.put_object(Body=json.dumps(json_files),Bucket='analytics-datapipeline',Key='libinsightData-json/LibInsightQueryData.json')
+  
+   # quit()
 #-------------------------------------------------------------------------------------------------------------------------------
 
 #---------------------------------------------------------------------------------------------------------

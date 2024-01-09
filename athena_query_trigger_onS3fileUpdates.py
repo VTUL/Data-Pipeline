@@ -16,7 +16,7 @@ The following lambda function gets triggered when libinsight data gets updated o
 import boto3
 # Query string to execute
 #query = 'SELECT * FROM "AwsDataCatalog"."libinsightdatabase"."libinsightdata"'
-query = 'SELECT * FROM AwsDataCatalog.libinsightdatabase.libinsightdata'
+query = 'SELECT * FROM AwsDataCatalog.libinsightdatabase.libinsightdata1'
 #query=libinsightQueryOnS3csvTable
 
 # Database to execute the query against
