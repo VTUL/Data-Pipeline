@@ -18,3 +18,14 @@ env
 
 # Lambda package file
 deploymentpackage.zip
+awscliv2.zip
+# Config
+envVar.py
+troubleshoot.py
+setEnvironVariables-local.sh
+dependencyPackage*
+libInsight_venv/
+libInsight_venv*
+libInsight_venv
+#Codes
+s3toAthenaQuery.py
